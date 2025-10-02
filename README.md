@@ -364,5 +364,3 @@ npm run preview     # static preview of built assets
 2. Click **Run Swarm**.
 3. Watch **Live Trace** fill with logs/hand-offs.
 4. When done, see **Status & Output** with final result and node history.
-
-If you want the trace to be grouped by **agent** with a timeline UI, open an issue or request a follow-up PR—this codebase is structured to support that parser and component easily.
