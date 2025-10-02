@@ -3,6 +3,7 @@
 <img width="954" height="788" alt="image" src="https://github.com/user-attachments/assets/b557109e-1e52-403e-abd7-56c9b9b55c07" />
 
 FastAPI + React (Vite + Tailwind) with **live agent traces (SSE)**
+
 A small full-stack project that wraps your working Strands multi-agent code behind a FastAPI API and adds a modern React UI to:
 
 - configure agents & swarm settings,
