@@ -1,5 +1,6 @@
 # Strands Swarm Console  
 FastAPI + React (Vite + Tailwind) with **live agent traces (SSE)**
+<img width="954" height="788" alt="image" src="https://github.com/user-attachments/assets/d03d466a-fc6d-4ea5-be06-0677b0128137" />
 
 A small full-stack project that wraps your working Strands multi-agent code behind a FastAPI API and adds a modern React UI to:
 
