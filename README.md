@@ -1,366 +1,270 @@
-# Strands Swarm Console 
+# Strands Swarm Console
 
-<img width="1876" height="798" alt="image" src="https://github.com/user-attachments/assets/92f0cf4f-3805-409f-9157-3ce9317c8f87" />
+A minimal full-stack console for running **Strands** multi-agent swarms with a modern, console-first UI.
 
-FastAPI + React (Vite + Tailwind) with **live agent traces (SSE)**
-
-A small full-stack project that wraps your working Strands multi-agent code behind a FastAPI API and adds a modern React UI to:
-
-- configure agents & swarm settings,
-- **enter a task** (required),
-- run the workflow,
-- watch **live traces** (agent handoffs/logs via Server-Sent Events),
-- view the **final output** and metadata.
+- **Backend:** FastAPI + Uvicorn  
+- **Frontend:** React + Vite + Tailwind  
+- **Streaming:** Server-Sent Events (SSE) for live traces and final results
 
 ---
 
-## ✨ Features
+## ✨ What’s New (UI)
 
-- **No auto-run**: waits for a user-entered **Task**.
-- **Live traces** via SSE: `/api/run/start` → `/api/stream/{run_id}` → `/api/result/{run_id}`.
-- Simple **health check**: `GET /health`.
-- Clean, responsive **Tailwind UI** (no UI libs).
-- Dev-friendly: **Vite proxy** → no CORS headaches locally.
+- **Sticky Command Dock:** Task input + Run button stay visible while you scroll.
+- **Console-first layout:** Tabs for **Trace / Transcript / Output** take center stage.
+- **Compact Config:** Settings & Agents live in a collapsible sidebar.
+- **Agent Transcript:** Final output can be parsed per-agent and rendered as readable blocks.
+
+> No extra frontend deps — just React + Tailwind.
 
 ---
 
-## 🧭 Project Structure
+## 🧭 Architecture
 
 ```
-repo/
-├─ backend/
-│  ├─ app.py               # FastAPI app + SSE
-│  └─ requirements.txt     # fastapi, uvicorn, strands-agents, etc.
-└─ swarm-ui/
-   ├─ src/
-   │  ├─ App.tsx           # React UI (with Live Trace + Status/Output)
-   │  └─ main.tsx          # imports ./index.css
-   ├─ index.html
-   ├─ tailwind.config.js
-   ├─ postcss.config.js
-   ├─ vite.config.ts       # proxy /api, /health → backend:8000
-   ├─ package.json
-   └─ src/index.css        # @tailwind base/components/utilities
+/backend
+  app.py         # FastAPI app: health, sync run, streaming start/stream/result
+/frontend  (or /swarm-ui)
+  src/App.tsx    # UI with sticky command dock, console tabs, compact config
+```
+
+**Key Endpoints**
+
+- `GET /health` — health probe  
+- `POST /api/run` — synchronous run (returns when the swarm completes)  
+- `POST /api/run/start` — starts a run, returns `{ "run_id": "…" }`  
+- `GET /api/stream/{run_id}` — **SSE** events: `ready`, `start`, `log`, `summary`, `done`  
+- `GET /api/result/{run_id}` — final summary (returns **202** while running)
+
+---
+
+## ✅ Requirements
+
+- **Python** 3.10+ (3.12 tested)
+- **Node.js** **20.19+** or **22.12+** (required by Vite)
+- `pip`, `uvicorn`, and the **Strands** Python package  
+  (plus any LLM provider creds your agents need)
+
+**Windows Node upgrade (nvm-windows):**
+
+```powershell
+choco install nvm
+nvm install 22.12.0
+nvm use 22.12.0
 ```
 
 ---
 
-## ⚙️ Prerequisites
+## ⚡ Quick Start (Development)
 
-- **Python** 3.10+ (3.12 recommended)
-- **Node.js** 22.12+ (or 20.19+) and **npm**
-- Your LLM credentials (as applicable). Examples:
-  - `OPENAI_API_KEY`
-  - `ANTHROPIC_API_KEY`
-  - AWS credentials if using **Bedrock**
-
-> On Windows, Node version management is easiest with **nvm-windows** (Corey Butler).  
-> Or install Node 22.x MSI from nodejs.org.
-
----
-
-## 🚀 Local Development
+Open two terminals.
 
 ### 1) Backend
 
-```powershell
+```bash
 cd backend
 python -m venv .venv
-# Windows:
-. .venv/Scripts/activate
 # macOS/Linux:
-# source .venv/bin/activate
+source .venv/bin/activate
+# Windows:
+# .venv\Scripts\activate
 
 pip install -U pip
+# Either:
 pip install -r requirements.txt
+# Or minimal:
+# pip install fastapi uvicorn strands
 
-# (optional) set your model API env vars, e.g.:
-# $env:OPENAI_API_KEY="sk-..."         # PowerShell
-# export OPENAI_API_KEY="sk-..."       # macOS/Linux
-
-# Start API (port 8000)
-uvicorn app:app --reload --host 0.0.0.0 --port 8000
-```
-
-Sanity check:
-```powershell
-curl http://127.0.0.1:8000/health   # -> {"ok": true}
+uvicorn app:app --reload --port 8000
 ```
 
 ### 2) Frontend
 
-```powershell
-cd swarm-ui
+```bash
+cd frontend   # or: cd swarm-ui
 npm install
 
-# Dev server (port 5173)
+# Point the UI to your backend:
+# macOS/Linux:
+export VITE_API_BASE="http://localhost:8000/"
+# Windows PowerShell:
+# $env:VITE_API_BASE="http://localhost:8000/"
+
 npm run dev
 ```
 
-Open the printed URL (typically `http://localhost:5173`).  
-The UI talks to the backend through the **Vite proxy** defined in `vite.config.ts`.
-
-> If you prefer not to use the proxy, set `swarm-ui/.env`:
-> 
-> ```
-> VITE_API_BASE=http://127.0.0.1:8000/
-> ```
-> 
-> and the app will call the backend directly (ensure CORS allows your origin).
+Open **http://localhost:5173**.  
+Enter a task in the sticky command dock and click **Run**.  
+Watch **Trace** live; switch to **Transcript** / **Output** when complete.
 
 ---
 
-## 🧪 How It Works
+## ⚙️ Configuration
 
-### Backend API (high-level)
+### Environment Variables
 
-- `POST /api/run`  
-  Traditional one-shot run (no streaming). Kept for compatibility.
+**Frontend**
 
-- `POST /api/run/start` → `{ run_id }`  
-  Starts a run in a background thread and attaches a **log handler** to `strands.multiagent`.
+- `VITE_API_BASE` — absolute URL of the backend, e.g. `http://localhost:8000/`.  
+  Omit or set to `/` if you proxy `/api` from the same origin in production.
 
-- `GET /api/stream/{run_id}` (SSE)  
-  Streams events: `ready`, `start`, `log`, `error`, `done`, `summary`.
+**Backend / Strands**
 
-- `GET /api/result/{run_id}`  
-  Returns final `{status, node_history, output, meta}` once complete.  
-  Returns **202** while still running.
+- Set any provider keys your agents need (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or your Bedrock creds).
 
-- `GET /health`  
-  `{ ok: true }`
+### CORS
 
-### Frontend Flow
-
-1. **Enter Task** → click **Run Swarm**  
-2. UI calls `POST /api/run/start` → saves `run_id`  
-3. UI opens `EventSource(/api/stream/{run_id})` and renders **Live Trace**  
-4. On `done`, UI fetches `/api/result/{run_id}` and fills **Status & Output**
+`app.py` allows `http://localhost:5173` and `*` for development.  
+**Tighten this for production.**
 
 ---
 
-## 🏗️ Production Build
+## 🛰️ API Details
 
-### Build the React app
+### `POST /api/run` (synchronous)
 
-```powershell
-cd swarm-ui
-npm run build
-# outputs: swarm-ui/dist/
-```
-
-You can test locally:
-```powershell
-npm run preview
-```
-
-### Serve the frontend + backend
-
-**Option A: Nginx (static UI + proxy /api)**
-
-1) Copy `swarm-ui/dist/` to your web server host (e.g., `/var/www/swarm-ui`).
-
-2) Run backend (behind systemd, Docker, or a process manager). Example (bare):
-```bash
-# inside backend venv on server
-uvicorn app:app --host 0.0.0.0 --port 8000 --workers 2
-```
-
-3) Nginx site (SSE friendly):
-
-```nginx
-server {
-  listen 80;
-  server_name your-domain.tld;
-
-  # Serve static frontend
-  root /var/www/swarm-ui;
-  index index.html;
-
-  # API proxy (FastAPI)
-  location /api/ {
-    proxy_pass         http://127.0.0.1:8000;
-    proxy_http_version 1.1;
-    proxy_set_header   Connection "";
-    proxy_set_header   Host $host;
-    proxy_set_header   X-Real-IP $remote_addr;
-    proxy_read_timeout 3600;
-    proxy_send_timeout 3600;
-    proxy_buffering    off;     # important for SSE
-    add_header         Cache-Control no-cache;
-  }
-
-  # Health route (optional)
-  location /health {
-    proxy_pass http://127.0.0.1:8000/health;
-  }
-
-  # SPA fallback for client-side routing
-  location / {
-    try_files $uri /index.html;
+```jsonc
+// Request
+{
+  "task": "Build a REST API for a todo app",
+  "agents": [
+    { "name": "researcher", "system_prompt": "You are a research specialist..." },
+    { "name": "architect",  "system_prompt": "You are an architecture specialist..." }
+  ],
+  "settings": {
+    "max_handoffs": 20,
+    "max_iterations": 20,
+    "execution_timeout": 900,
+    "node_timeout": 300,
+    "repetitive_handoff_detection_window": 8,
+    "repetitive_handoff_min_unique_agents": 3,
+    "entry_point": "researcher"
   }
 }
 ```
 
-**Option B: Docker (example)**
-
-_Quick single-host example; adapt to your registry and base images._
-
-`backend/Dockerfile`:
-```dockerfile
-FROM python:3.12-slim
-WORKDIR /app
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY backend /app
-ENV PYTHONUNBUFFERED=1
-EXPOSE 8000
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+```jsonc
+// Response (fields may vary by SDK version)
+{
+  "status": "COMPLETED",
+  "node_history": ["researcher", "architect"],
+  "output": null,
+  "meta": { "elapsed_time": 41.75 },
+  "transcript": [
+    {
+      "agent": "researcher",
+      "role": "assistant",
+      "text": "Handing off to architect…",
+      "stop_reason": "end_turn",
+      "usage": { "inputTokens": 1590, "outputTokens": 338, "totalTokens": 1928 }
+    },
+    {
+      "agent": "architect",
+      "role": "assistant",
+      "text": "## Enterprise Architecture Roadmap ...",
+      "stop_reason": "end_turn",
+      "usage": { "inputTokens": 788, "outputTokens": 2231, "totalTokens": 3019 }
+    }
+  ]
+}
 ```
 
-`swarm-ui/Dockerfile`:
-```dockerfile
-# build stage
-FROM node:22-alpine AS build
-WORKDIR /ui
-COPY swarm-ui/package*.json ./
-RUN npm ci
-COPY swarm-ui .
-RUN npm run build
+> The backend serializes enums to strings for JSON/SSE compatibility.
 
-# serve stage
-FROM nginx:alpine
-COPY --from=build /ui/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
-```
+### Streaming Flow
 
-`nginx.conf` (same proxy rules as above).
+1. `POST /api/run/start` → `{ "run_id": "…" }`  
+2. `GET /api/stream/{run_id}` → SSE events (`ready`, `start`, `log`, `summary`, `done`)  
+3. `GET /api/result/{run_id}` → final summary (returns **202** while running)
 
-`docker-compose.yml` (optional):
-```yaml
-version: "3.9"
-services:
-  api:
-    build: ./backend
-    ports: ["8000:8000"]
-    environment:
-      # pass your LLM creds here or via secrets
-      # OPENAI_API_KEY: ${OPENAI_API_KEY}
-    restart: unless-stopped
-  web:
-    build: ./swarm-ui
-    ports: ["80:80"]
-    depends_on: [api]
-    restart: unless-stopped
-```
+SSE headers set in `app.py`:
+- `Content-Type: text/event-stream`
+- `Cache-Control: no-cache`
+- `X-Accel-Buffering: no` (for NGINX)
 
 ---
 
-## 🔐 Environment & Models
+## 🏗️ Production Build & Deploy
 
-- The backend creates `Agent` objects from the UI specs. If your `strands` build supports a `model` parameter, type it per agent (e.g., `\"gpt-4o\"`, `\"anthropic/claude-3-5\"`, a Bedrock model id).  
-- If you skip `model`, Strands uses its **default backend** (e.g., from `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, AWS creds).
+### Build UI
 
-Set environment variables before launching Uvicorn (examples):
-
-**PowerShell**
-```powershell
-$env:OPENAI_API_KEY="sk-..."
-# $env:ANTHROPIC_API_KEY="..."
-# $env:AWS_ACCESS_KEY_ID="..."; $env:AWS_SECRET_ACCESS_KEY="..."
-```
-
-**bash/zsh**
 ```bash
-export OPENAI_API_KEY="sk-..."
-# export ANTHROPIC_API_KEY="..."
-# export AWS_ACCESS_KEY_ID="..."; export AWS_SECRET_ACCESS_KEY="..."
+cd frontend
+npm run build
+# Output in dist/
 ```
 
----
+Serve `dist/` as static files and **proxy /api** to the FastAPI server.
 
-## 🩺 Troubleshooting
+### Example NGINX
 
-- **Vite proxy “ECONNREFUSED ::1:8000”**  
-  Your proxy used IPv6 (`::1`) while Uvicorn listened on IPv4.  
-  Fix: in `vite.config.ts` set proxy target to `http://127.0.0.1:8000`, or start Uvicorn with `--host ::`.
+```nginx
+server {
+  listen 80;
+  server_name your.domain;
 
-- **Vite “crypto.hash is not a function”**  
-  Node version too old. Use Node **22.12+** (or 20.19+), reinstall `node_modules`.
+  root /var/www/swarm-ui/dist;
+  index index.html;
 
-- **Tailwind styles not showing**  
-  Ensure `src/main.tsx` imports `\"./index.css\"` and your `index.css` begins with:
-  ```css
-  @tailwind base;
-  @tailwind components;
-  @tailwind utilities;
-  ```
-  Also confirm `tailwind.config.js` scans `./src/**/*.{js,ts,jsx,tsx}`.
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
 
-- **Tailwind 4 PostCSS error**  
-  Install the plugin and update PostCSS config:
-  ```bash
-  npm i -D @tailwindcss/postcss postcss autoprefixer
-  ```
-  `postcss.config.js`:
-  ```js
-  export default { plugins: { \"@tailwindcss/postcss\": {}, autoprefixer: {} } }
-  ```
+  # Proxy API to FastAPI (Uvicorn/Gunicorn on 127.0.0.1:8000)
+  location /api/ {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header Connection "";
+    proxy_set_header Upgrade $http_upgrade;
 
-- **CORS**  
-  In `app.py`:
-  ```python
-  allow_origins=[\"http://localhost:5173\",\"http://127.0.0.1:5173\"]
-  ```
-  Or rely on the Vite proxy (`/api` → backend) in dev to avoid CORS entirely.
+    # SSE
+    proxy_buffering off;
+    add_header Cache-Control no-cache;
+  }
 
-- **SSE behind proxies**  
-  Disable buffering and keep HTTP/1.1:
-  ```nginx
-  proxy_http_version 1.1;
-  proxy_buffering off;
-  add_header Cache-Control no-cache;
-  ```
+  location /health {
+    proxy_pass http://127.0.0.1:8000/health;
+  }
+}
+```
 
----
+### Run Backend
 
-## 🧼 Quality of Life
-
-- “Run ID” label (shortened) appears while a run is active.
-- **Clear** button in **Live Trace** resets the panel.
-- Output boxes use `whitespace-pre-wrap` + `overflow-auto`.
-- Mobile/desktop responsive: grids scale `1 → 2 → 3` columns; right column becomes sticky on large screens.
-
----
-
-## 📦 Commands Summary
-
-**Backend**
 ```bash
-# setup
-python -m venv .venv
-source .venv/bin/activate        # or . .venv/Scripts/activate on Windows
-pip install -U pip
-pip install -r requirements.txt
-
-# run
-uvicorn app:app --reload --host 0.0.0.0 --port 8000
+pip install "uvicorn[standard]"
+uvicorn app:app --host 127.0.0.1 --port 8000
 ```
 
-**Frontend**
-```bash
-npm install
-npm run dev         # dev server with proxy
-npm run build       # production build (swarm-ui/dist/)
-npm run preview     # static preview of built assets
-```
+> For hardening, consider Gunicorn + UvicornWorker, systemd units, TLS, and strict CORS.
 
 ---
 
-## ✅ What to Expect
+## 🧪 Troubleshooting
 
-1. Open the UI → enter a **Task**.
-2. Click **Run Swarm**.
-3. Watch **Live Trace** fill with logs/hand-offs.
-4. When done, see **Status & Output** with final result and node history.
+- **`TypeError: Object of type Status is not JSON serializable`**  
+  Fixed by casting enums to strings in `app.py` before JSON/SSE.
+
+- **Vite error `crypto.hash is not a function`**  
+  Use Node **20.19+** or **22.12+**.
+
+- **SSE not updating through proxy**  
+  Ensure `proxy_buffering off` on `/api/stream/*`.
+
+- **CORS issues in dev**  
+  Verify `VITE_API_BASE` and the `allow_origins` list in `app.py`.
+
+---
+
+## 🗒️ Changelog (recent)
+
+- Sticky header command dock (non-scrolling Run/Task bar).
+- Console-first layout with tabs and compact config.
+- Agent transcript rendering support in the UI.
+- Updated docs for Node version & SSE proxying.
+
+---
+
+## License
+
+MIT (or your preferred license).
