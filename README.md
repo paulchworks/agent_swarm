@@ -1,7 +1,6 @@
 # Strands Swarm Console 
 
-<img width="1553" height="794" alt="image" src="https://github.com/user-attachments/assets/ad3d762a-40d7-4f5a-9432-39a92356528e" />
-
+<img width="1889" height="796" alt="image" src="https://github.com/user-attachments/assets/b0c789e8-6b51-4b60-9ebc-79fad4bf474a" />
 
 FastAPI + React (Vite + Tailwind) with **live agent traces (SSE)**
 
