@@ -264,8 +264,3 @@ uvicorn app:app --host 127.0.0.1 --port 8000
 - Agent transcript rendering support in the UI.
 - Updated docs for Node version & SSE proxying.
 
----
-
-## License
-
-MIT (or your preferred license).
