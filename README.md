@@ -5,6 +5,7 @@ A minimal full-stack console for running **Strands** multi-agent swarms with a m
 - **Backend:** FastAPI + Uvicorn  
 - **Frontend:** React + Vite + Tailwind  
 - **Streaming:** Server-Sent Events (SSE) for live traces and final results
+<img width="1862" height="798" alt="image" src="https://github.com/user-attachments/assets/cd88f922-57ba-402e-8464-13d86b772f10" />
 
 ---
 
